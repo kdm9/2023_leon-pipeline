@@ -1,0 +1,438 @@
+configfile: "config_template.yaml"
+
+rename_in = []
+rename_out = []
+refine_out = []
+rename_rg_out = []
+concat_out = []
+cluster_out = []
+
+
+for idx, pool in enumerate(config['pools']):
+    for bc, sample in zip(config['name2bc'][idx].values(), config['name2bc'][idx].keys()):
+        rename_in.append(f"{pool}/{pool}.demux.hifi.{bc}.bam")
+        rename_out.append(f"{pool}/{pool}.demux.hifi.{sample}.bam")
+        refine_out.append(f"{pool}/{pool}.{sample}.ncfl.bam")
+        rename_rg_out.append(f"{pool}/{pool}.{sample}.ncfl.bam")
+        concat_out.append(f"{sample}.ncfl.fastq")
+        cluster_out.append(f"{sample}.transcripts.bam")
+
+# CCS
+
+rule all:
+    input:
+        expand("output/lima/{pattern}", pattern=rename_out),
+        expand("output/refine/{pattern}", pattern=refine_out),
+        expand("output/rename_rg/{pattern}", pattern=rename_rg_out),
+        expand("output/concat_samples/{pattern}", pattern=concat_out),
+        # expand("output/cluster/{pattern}", pattern=cluster_out),
+        #expand("output/mapping_minimap/{sample}.mapped.bam.bai", sample=config["samples2map"]),
+        #expand("output/v0/collapse_pb/{sample}.collapsed.pb.v0.gff", sample=config["samples2map"]),
+        #expand("output/v0/collapse_stringtie/{sample}.collapsed.stringtie.v0.gff", sample=config["samples2map"]),
+        #expand("output/v0/collapse_tama/{sample}.collapsed.tama.v0.bed", sample=config["samples2map"]),
+        #expand("output/v0/collapse_tama/{sample}.collapsed.tama.v0.gff3", sample=config["samples2map"]),
+        #expand("output/v0/merged_gff/{sample}.merged.v0.gff", sample=config["samples2map"]),
+        ### collapsing v1
+        #expand("output/v1/collapse_pb/{sample}.collapsed.pb.v1.gff", sample=config["samples2map"]),
+        #expand("output/v1/collapse_stringtie/{sample}.collapsed.stringtie.v1.gff", sample=config["samples2map"]),
+        #expand("output/v1/collapse_tama/{sample}.collapsed.tama.v1.bed", sample=config["samples2map"]),
+        #expand("output/v1/collapse_tama/{sample}.collapsed.tama.v1.gff3", sample=config["samples2map"]),
+        ### collapsing v2
+        #expand("output/v2/collapse_pb/{sample}.collapsed.pb.v2.gff", sample=config["samples2map"]),
+        #expand("output/v2/collapse_stringtie/{sample}.collapsed.stringtie.v2.gff", sample=config["samples2map"]),
+        #expand("output/v2/collapse_tama/{sample}.collapsed.tama.v2.bed", sample=config["samples2map"]),
+        #expand("output/v2/collapse_tama/{sample}.collapsed.tama.v2.gff3", sample=config["samples2map"])
+
+
+
+# rule ccs:
+#     """
+#     Create HiFi reads from SequelII IsoSeq subreads
+#     """
+#     input:
+#         file="input/subreads/{pool}.subreads.bam"
+#     output:
+#         dir="output/ccs/{pool}",
+#         file="output/ccs/{pool}/{pool}.hifi.bam"
+#     log:
+#         "log/ccs/{pool}/{pool}.ccs.log"
+#     params:
+#         prefix="output/ccs/{pool}/{pool}"
+#     threads: 64
+#     shell:
+#         "mkdir -p {output.dir} && ccs --report-file {params.prefix}.report.txt --metrics-json {params.prefix}.metrics.json.gz --hifi-summary-json {params.prefix}.hifi-summary.json --num-threads {threads} --log-level INFO --log-file {log} {input} {params.prefix}.hifi.bam"
+
+# lima
+
+# rule lima:
+#     """
+#     Demultiplex the pools and remove primers + barcodes (TO DO: do the barcodes present also contain primers? --> Barcodes + universal primers from the downloaded isoseq file)
+#     """
+#     input:
+#         hifi="output/ccs/{pool}/{pool}.hifi.bam",
+#         biosamples="input/meta/biosamp_{pool}.csv",
+#         barcodes="input/meta/pb16_barcodes_uniprimers.fasta"
+#     output: 
+#         dir=directory("/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/lima/{pool}/"),
+#     log:
+#          "log/lima/{pool}.lima.log"
+#     params:
+#         pattern="output/lima/{pool}/{pool}.demux.hifi.bam"
+#     threads: 64
+#     shell:
+#         "mkdir -p {output.dir} && lima --hifi-preset SYMMETRIC-ADAPTERS --isoseq --peek-guess --min-length 100 --peek-guess --num-threads {threads} --log-level INFO --log-file {log} --store-unbarcoded --split-bam-named --biosample-csv {input.biosamples} {input.hifi} {input.barcodes} {params.pattern} && touch {output.check}"
+
+for bc, sample in zip(rename_in, rename_out):
+    rule:
+        input:
+            f"output/lima/{bc}/"
+        output:
+            f"output/lima/{sample}/"
+        shell:
+            "mv {input} {output}"
+
+# refine
+
+#rule refine:
+#    """
+#    Remove polyAtails and filter for concatamers (primers required again) (TO DO: do the barcodes present also contain primers?, Read about average PolyA tail length in Ara?, Does G in PolyA disturb analysis, make benchmarking on read retainment)
+#    """
+#    input:
+#        reads="output/lima/{pool}/{pool}.demux.hifi.{sample}.bam",
+#        primers="input/meta/pb16_barcodes_uniprimers.fasta"
+#    output:
+#        "output/refine/{pool}/{pool}.{sample}.ncfl.bam"
+#    log:
+#        "log/refine/{pool}.{sample}.refine.log"
+#    params:
+#        dir=directory("output/refine/{pool}")
+#    threads: 4
+#    shell:
+#        "mkdir -p {params.dir} && isoseq3 refine -j {threads} --require-polya --log-level INFO --log-file {log} {input.reads} {input.primers} {output}"
+
+
+# concatenate different runs
+
+#rule rename_rg:
+#    input:
+#        "output/refine/{pool}/{pool}.{sample}.ncfl.bam"
+#    output:
+#        "output/rename_rg/{pool}/{pool}.{sample}.ncfl.bam"
+#    log:
+#        "log/rename_rg/{pool}.{sample}.rename_rg.log"
+#    params:
+#        dir=directory("output/rename_rg/{pool}"),
+#        pattern="{pool}_{sample}"
+#    threads: 4
+#    shell:
+#        "mkdir -p {params.dir} && python3 scripts/rg.py -t {threads} -i {input} -o {output} -d {params.pattern} |& tee {log}"
+#
+#
+#from collections import defaultdict
+#
+#rule concat_samples:
+#    input:
+#        lambda wc: expand("output/rename_rg/{pool}/{pool}.{sample}.ncfl.bam",
+#                    pool=config["sample2pools"][wc.sample],
+#                    sample=wc.sample)
+#    output:
+#        "output/concat_samples/{sample}.ncfl.bam"
+#    log: 
+#        "log/concat_samples/{sample}.ncfl.log"
+#    shell:
+#        "mkdir -p output/concat_samples && samtools merge {output} {input} |& tee {log}"
+#
+## cluster
+#
+## rule cluster:
+##     """
+##     turn off!
+##     """
+##     input:
+##         "output/concat_samples/{sample}.ncfl.bam"
+##     output:
+##         "output/cluster/{sample}.transcripts.bam"
+##     log:
+##         "log/cluster/{sample}.cluster.log"
+##     threads: 12
+##     shell:
+##         "mkdir -p output/cluster && isoseq3 cluster -j {threads} --singletons --log-level INFO --log-file {log} {input} {output}"
+#
+#
+#rule bam2fastq:
+#    input:
+#        "output/concat_samples/{sample}.ncfl.bam"
+#    output:
+#        "output/concat_samples/{sample}.ncfl.fastq"
+#    log:
+#        "log/bam2fastq/{sample}.transcripts.bam2fastq.log"
+#    priority: 50
+#    shell:
+#        "bedtools bamtofastq -i {input} -fq {output} |& tee {log}" #doubles reads
+#      #  "samtools bam2fq {input} > {output} |& tee {log}" #mappin with pbmm2 does not work and warnings in minimap2: ([M::worker_pipeline::211.727*9.74] mapped 248864 sequences [WARNING] wrong FASTA/FASTQ record. Continue anyway.)
+#
+#
+#rule rm_dups:
+#    input:
+#        "output/concat_samples/{sample}.ncfl.fastq"
+#    output:
+#        "output/concat_samples/{sample}.ncfl.no_dups.fastq"
+#    log:
+#        "log/rm_dup_fq/{sample}.ncfl.no_dups.log"
+#    params:
+#        stats="output/concat_samples/{sample}.ncfl.dups.stats"
+#    threads: 4
+#    shell:
+#        "cat {input} | paste - - - - | sort -k1,1 -S 3G | tr '\t' '\n'  | seqkit rmdup -n -j {threads} -D {params.stats} -o {output} |& tee {log}"
+#
+#
+## mapping
+#
+#rule mapping_pbmm2:
+#    input:
+#        ref="input/refs/{sample}.scaffolds-v2.3.fasta",
+#        transcripts="output/concat_samples/{sample}.ncfl.no_dups.fastq"
+#    output:
+#        "output/mapping_pb/{sample}.mapped.bam"
+#    log:
+#        "log/mapping_pb/{sample}.mapping.log"
+#    threads: 10
+#    shell:
+#        "mkdir -p output/mapping_pb && pbmm2 align --preset ISOSEQ --sort --log-level INFO --log-file {log} {input.transcripts} {input.ref} {output}"
+#
+#rule mapping_minimap:
+#    """
+#    Map the reads against the genome. Don't use pbmm2, as I don't know if -ax splice is enabled here, which is required for StringTiea, BUT use the equivalent parameters as ISOSEQ preset from pbmm2 (https://github.com/lh3/minimap2/issues/769).
+#    """
+#    input:
+#        ref="input/refs/{sample}.scaffolds-v2.3.fasta",
+#        transcripts="output/concat_samples/{sample}.ncfl.no_dups.fastq"
+#    output:
+#        "output/mapping_minimap/{sample}.mapped.bam"
+#    log:
+#        "log/mapping_minimap/{sample}.mapping.log"
+#    threads: 10
+#    shell:
+#        "mkdir -p output/mapping_minimap && minimap2 -t {threads} -ax splice:hq -MD -k 15 -w 5 -O 2,32 -E 1,0 -A 1 -B 2 -z 200,100 -r 200000 -g 2000 -C5 -G 200000 {input.ref} {input.transcripts} | samtools sort -l 9 -o {output} |& tee -a {log}"
+#
+#rule minimap_index:
+#    input: 
+#        "output/mapping_minimap/{sample}.mapped.bam"
+#    output:
+#        "output/mapping_minimap/{sample}.mapped.bam.bai"
+#    log: 
+#        "log/mapping_minimap/{sample}.indexed.log"
+#    threads: 10
+#    shell:
+#        "samtools index -o {output} {input} |& tee {log}"
+#
+## collapse
+#
+#rule collapse_pb:
+#    input:
+#        "output/mapping_pb/{sample}.mapped.bam"
+#    output:
+#        "output/v0/collapse_pb/{sample}.collapsed.pb.v0.gff"  
+#    log:
+#        "log/collapse_pb/{sample}.collapse.v0.log"
+#    threads: 4
+#    shell:
+#        "mkdir -p output/v0/collapse_pb && isoseq3 collapse --do-not-collapse-extra-5exons --log-level INFO --log-file {log} -j {threads} {input} {output}"
+#
+#
+#rule collapse_stringtie:
+#    input:
+#        "output/mapping_minimap/{sample}.mapped.bam"
+#    output:
+#        "output/v0/collapse_stringtie/{sample}.collapsed.stringtie.v0.gff"
+#    log:
+#        "log/collapse_stringtie/{sample}.collapse.v0.log"
+#    shell:
+#        "mkdir -p output/v0/collapse_stringtie && stringtie -o {output} {input} |& tee {log}"
+#
+#rule collapse_tama:
+#    input:
+#        mapping="output/mapping_minimap/{sample}.mapped.bam",
+#        fasta="input/refs/{sample}.scaffolds-v2.3.fasta"
+#    output:
+#        "output/v0/collapse_tama/{sample}.collapsed.tama.v0.bed"
+#    log:
+#        "log/collapse_tama/{sample}.collapse.v0.bed.log"
+#    params:
+#        python_path="~/anaconda3/envs/py2.7/bin/python2.7",
+#        tama_path="~/software/tama/tama_collapse.py",
+#        prefix="output/v0/collapse_tama/{sample}.collapsed.tama.v0"
+#    shell:
+#        "mkdir -p output/v0/collapse_tama && {params.python_path} {params.tama_path} -s {input.mapping} -b BAM -f {input.fasta} -p {params.prefix} -log log_off -x no_cap |& tee {log}"
+#
+#rule bed2gtf:
+#    input:
+#        "output/v0/collapse_tama/{sample}.collapsed.tama.v0.bed"
+#    output:
+#        "output/v0/collapse_tama/{sample}.collapsed.tama.v0.gtf"
+#    log:
+#        "log/collapse_tama/{sample}.collapsed.tama.gtf.v0.log"
+#    shell:
+#        "perl scripts/bed12ToGTF.1.pl < {input} > {output} |& tee {log}"
+#
+#rule gtf2gff3:
+#    input:
+#        "output/v0/collapse_tama/{sample}.collapsed.tama.v0.gtf"
+#    output:
+#        "output/v0/collapse_tama/{sample}.collapsed.tama.v0.gff3"
+#    log:
+#        "log/collapse_tama/{sample}.collapsed.tama.gff3.v0.log"
+#    shell:
+#        "gffread -E --keep-genes {input} -o {output} |& tee {log}"
+#
+#
+## combine all annotations
+#
+#rule merge:
+#    input:
+#        pb="output/v0/collapse_pb/{sample}.collapsed.pb.v0.gff",
+#        stringtie="output/v0/collapse_stringtie/{sample}.collapsed.stringtie.v0.gff",
+#        tama="output/v0/collapse_tama/{sample}.collapsed.tama.v0.gff3"
+#    output:
+#        "output/v0/merged_gff/{sample}.merged.v0.gff"
+#    log:
+#        "log/merged_gff/{sample}.merged.v0.log"
+#    shell:
+#        "mkdir -p output/merged_gff && stringtie --merge -o {output} {input} |& tee {log}"
+#
+#
+####################
+## collapsing strict
+#
+#rule collapse_pb_strict:
+#    input:
+#        "output/mapping_pb/{sample}.mapped.bam"
+#    output:
+#        "output/v1/collapse_pb/{sample}.collapsed.pb.v1.gff"
+#    log:
+#        "log/collapse_pb/{sample}.collapse.v1.log"
+#    threads: 4
+#    params:
+#        v1="--max-fuzzy-junction 0 --max-5p-diff 0 --max-3p-diff 0"
+#    priority: 50
+#    shell:
+#        "mkdir -p output/v1/collapse_pb && isoseq3 collapse --do-not-collapse-extra-5exons {params.v1} --log-level INFO --log-file {log} -j {threads} {input} {output}"
+#
+#rule collapse_stringtie_strict:
+#    input:
+#        "output/mapping_minimap/{sample}.mapped.bam"
+#    output:
+#        "output/v1/collapse_stringtie/{sample}.collapsed.stringtie.v1.gff"
+#    log:
+#        "log/collapse_stringtie/{sample}.collapsed.v1.log"
+#    params:
+#        v1="-t -L -R -E 0"
+#    priority: 50
+#    shell:
+#        "mkdir -p output/v1/collapse_stringtie && stringtie {params.v1} -o {output} {input} |& tee {log}"
+#
+#rule collapse_tama_strict:
+#    input:
+#        mapping="output/mapping_minimap/{sample}.mapped.bam",
+#        fasta="input/refs/{sample}.scaffolds-v2.3.fasta"
+#    output:
+#        "output/v1/collapse_tama/{sample}.collapsed.tama.v1.bed"
+#    log:
+#        "log/collapse_tama/{sample}.collapse.v1.bed.log"
+#    params:
+#        python_path="~/anaconda3/envs/py2.7/bin/python2.7",
+#        tama_path="~/software/tama/tama_collapse.py",
+#        prefix="output/v1/collapse_tama/{sample}.collapsed.tama.v1",
+#        v1="-x capped -a 10 -m 0 -z 5"
+#    shell:
+#        "mkdir -p output/collapse_tama && {params.python_path} {params.tama_path} -s {input.mapping} -b BAM -f {input.fasta} -p {params.prefix} {params.v1} -log log_off |& tee {log}"
+#
+#rule bed2gtf_strict:
+#    input:
+#        "output/v1/collapse_tama/{sample}.collapsed.tama.v1.bed"
+#    output:
+#        "output/v1/collapse_tama/{sample}.collapsed.tama.v1.gtf"
+#    log:
+#        "log/collapse_tama/{sample}.collapsed.tama.v1.gtf.log"
+#    shell:
+#        "perl scripts/bed12ToGTF.1.pl < {input} > {output} |& tee {log}"
+#
+#rule gtf2gff3_strict:
+#    input:
+#        "output/v1/collapse_tama/{sample}.collapsed.tama.v1.gtf"
+#    output:
+#        "output/v1/collapse_tama/{sample}.collapsed.tama.v1.gff3"
+#    log:
+#        "log/collapse_tama/{sample}.collapsed.tama.v1.gff3.log"
+#    shell:
+#        "gffread -E --keep-genes {input} -o {output} |& tee {log}"
+#
+## v2: real parameters
+#
+####################
+## collapsing v2
+#
+#rule collapse_pb_v2:
+#    input:
+#        "output/mapping_pb/{sample}.mapped.bam"
+#    output:
+#        "output/v2/collapse_pb/{sample}.collapsed.pb.v2.gff"
+#    log:
+#        "log/collapse_pb/{sample}.collapse.v2.log"
+#    threads: 4
+#    params:
+#        v1="--min-aln-identity 0.99 --max-fuzzy-junction 0 --max-5p-diff 10 --max-3p-diff 5"
+#    priority: 50
+#    shell:
+#        "mkdir -p output/v2/collapse_pb && isoseq3 collapse --do-not-collapse-extra-5exons {params.v1} --log-level INFO --log-file {log} -j {threads} {input} {output}"
+#
+#rule collapse_stringtie_v2:
+#    input:
+#        "output/mapping_minimap/{sample}.mapped.bam"
+#    output:
+#        "output/v2/collapse_stringtie/{sample}.collapsed.stringtie.v2.gff"
+#    log:
+#        "log/collapse_stringtie/{sample}.collapsed.v3.log"
+#    params:
+#        v2="-s 0.99 -g -20 -t -R -E 10",
+#        stats="output/v3/collapse_stringtie/{sample}.collapsed.stringtie.v3.stats"
+#    priority: 50
+#    shell:
+#        "mkdir -p output/v1/collapse_stringtie && /ebio/abt6/lvaness/software/stringtie/stringtie {params.v2} -A {params.stats} -o {output} {input} |& tee {log}"
+#
+#rule collapse_tama_v2:
+#    input:
+#        mapping="output/mapping_minimap/{sample}.mapped.bam",
+#        fasta="input/refs/{sample}.scaffolds-v2.3.fasta"
+#    output:
+#        "output/v2/collapse_tama/{sample}.collapsed.tama.v2.bed"
+#    log:
+#        "log/collapse_tama/{sample}.collapse.v2.bed.log"
+#    params:
+#        python_path="~/anaconda3/envs/py2.7/bin/python2.7",
+#        tama_path="~/software/tama/tama_collapse.py",
+#        prefix="output/v2/collapse_tama/{sample}.collapsed.tama.v2",
+#        v="-x capped -a 10 -m 0 -z 5 -i 99 -sj sj_priority -sjt 10 -lde 2"
+#    shell:
+#        "mkdir -p output/v2/collapse_tama && {params.python_path} {params.tama_path} -s {input.mapping} -b BAM -f {input.fasta} -p {params.prefix} {params.v} -log log_off |& tee {log}"
+#
+#rule bed2gtf_v2:
+#    input:
+#        "output/v2/collapse_tama/{sample}.collapsed.tama.v2.bed"
+#    output:
+#        "output/v2/collapse_tama/{sample}.collapsed.tama.v2.gtf"
+#    log:
+#        "log/collapse_tama/{sample}.collapsed.tama.v2.gtf.log"
+#    shell:
+#        "perl scripts/bed12ToGTF.1.pl < {input} > {output} |& tee {log}"
+#
+#rule gtf2gff3_v2:
+#    input:
+#        "output/v2/collapse_tama/{sample}.collapsed.tama.v2.gtf"
+#    output:
+#        "output/v2/collapse_tama/{sample}.collapsed.tama.v2.gff3"
+#    log:
+#        "log/collapse_tama/{sample}.collapsed.tama.v2.gff3.log"
+#    shell:
+#        "gffread -E --keep-genes {input} -o {output} |& tee {log}"
+#

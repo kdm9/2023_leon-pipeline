@@ -1,0 +1,31 @@
+samples2comp=['at6923','at6929','at7143','at8285','at9104','at9336','at9503','at9578','at9744','at9762','at9806','at9830','at9847','at9852','at9879','at9883','at9900']
+
+rule all:
+    input:
+        #expand(directory("output/{sample}/sqanti/"), sample=samples2comp)
+        directory(expand("output/{sample}/sqanti/", sample=samples2comp))
+
+rule gff2gtf:
+    input:
+        "/tmp/global2/lvaness/dl20-annex/final/annotation/latest/{sample}_hodgepodgemerged.gff3"
+    output:
+        "input/{sample}_hodgepodgemerged.gff3"
+    log:
+        "log/{sample}/gff2gtf.log"
+    shell:
+        "gffread -T -o {output} {input}"
+
+rule squanti_ref_aug:
+    input:
+        annotation="input/{sample}_hodgepodgemerged.gff3",
+        genome="../input/refs/{sample}.scaffolds-v2.3.fasta",
+        tama="../output/v2/collapse_tama/{sample}.collapsed.tama.v2.gtf"
+    output:
+        directory("output/{sample}/sqanti/")
+    params:
+        prefix="{sample}-hodgepodgemerged"
+    log:
+        "log/{sample}/sqanti.log"
+    shell:
+        "export PYTHONPATH=\$PYTHONPATH:/ebio/abt6/lvaness/software/cDNA_Cupcake/sequence && mkdir -p {output} && python3 /ebio/abt6/lvaness/software/SQANTI3-5.1/sqanti3_qc.py -o {params.prefix} --report skip --d {output} {input.tama} {input.annotation} {input.genome} > {log}"
+

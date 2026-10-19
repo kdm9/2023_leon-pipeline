@@ -1,0 +1,45 @@
+samples = ['at6923','at6929','at7143','at8285','at9104','at9336','at9503','at9578','at9744','at9762','at9806','at9830','at9847','at9852','at9879','at9883','at9900','col0']
+run=["pb"]
+tool=["liftoff","augustus"]
+
+rule all:
+    input:
+        expand("../merged/{sample}_{run}_{tool}_merged.pkl", sample=samples, run=run, tool=tool),
+        expand("../sqanti/{sample}_{run}_{tool}_sqanti_orf.pkl", sample=samples, run=run, tool=tool),
+        expand("../trans/{sample}_{run}_{tool}_transdecoder_orf.pkl", sample=samples, run=run, tool=tool)
+
+rule merge_pb:
+    input:
+        sqanti="/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/v2/collapse_pb/{sample}_{tool}_sqanti/{sample}-pb-vs-{tool}_classification.txt",
+        reads="/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/v2/collapse_pb/{sample}.collapsed.pb.v2.abundance.txt"
+    output:
+        "../merged/{sample}_pb_{tool}_merged.pkl"
+    shell:
+        "python3 /ebio/abt6_projects7/dliso/dlis/leon_pipeline/analysis/sqanti/scripts/merge_pb.py -s {input.sqanti} -r {input.reads} -a {wildcards.sample} -o {output}"
+
+rule merge_tama:
+    input:
+        sqanti="/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/v2/collapse_tama/{sample}_{tool}_sqanti/{sample}-tama-vs-{tool}_classification.txt",
+        reads="/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/v2/collapse_tama/{sample}.collapsed.tama.v2_read_support.txt"
+    output:
+        "../merged/{sample}_tama_{tool}_merged.pkl"
+    shell:
+        "python3 /ebio/abt6_projects7/dliso/dlis/leon_pipeline/analysis/sqanti/scripts/merge_tama.py -s {input.sqanti} -r {input.reads} -a {wildcards.sample} -o {output}"
+
+rule sqanti_orf:
+    input:
+        sqanti="/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/v2/collapse_{run}/{sample}_{tool}_sqanti/{sample}-{run}-vs-{tool}_classification.txt",
+        merged="../merged/{sample}_{run}_{tool}_merged.pkl"
+    output:
+        "../sqanti/{sample}_{run}_{tool}_sqanti_orf.pkl"
+    shell:
+        "python3 /ebio/abt6_projects7/dliso/dlis/leon_pipeline/analysis/sqanti/scripts/sqanti_orf_pb.py -s {input.sqanti} -m {input.merged} -o {output}"
+
+rule transdecoder_orf:
+    input:
+        reads="/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/v2/collapse_{run}/{sample}_transdecoder/{sample}_transcripts.fasta.transdecoder.genome.sorted.protein.fasta",
+        merged="../merged/{sample}_{run}_{tool}_merged.pkl"
+    output:
+        "../trans/{sample}_{run}_{tool}_transdecoder_orf.pkl"
+    shell:
+        "python3 /ebio/abt6_projects7/dliso/dlis/leon_pipeline/analysis/sqanti/scripts/transdecoder_orf_pb.py -f {input.reads} -m {input.merged} -o {output}"

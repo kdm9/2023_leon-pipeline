@@ -1,0 +1,15 @@
+SAMPLES, = glob_wildcards("input/{sample}_novel.prot.fasta")
+
+rule all:
+    input:
+        expand("output/{sample}_blastp.txt", sample=SAMPLES)
+
+rule blastp:
+    input:
+        "input/{sample}_novel.prot.fasta"
+    output:
+        "output/{sample}_blastp.txt"
+    params:
+        db="plant_db/plant.protein.faa"
+    shell:
+        "blastp -query {input} -db {params.db} -out {output} -num_threads 4 -num_alignments 5 -outfmt 6 \"qseqid sseqid sallseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore\""

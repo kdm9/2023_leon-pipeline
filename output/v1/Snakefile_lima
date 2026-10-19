@@ -1,0 +1,27 @@
+configfile: "config.yaml"
+
+rule all:
+    input:
+        expand("/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/lima/{pool}/", pool=config['pools'])
+
+rule lima:
+    """
+    Demultiplex the pools and remove primers + barcodes (TO DO: do the barcodes present also contain primers? --> Barcodes + universal primers from the downloaded isoseq file)
+    """
+    input:
+        # hifi=expand("/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/ccs/{pool}/{pool}.hifi.bam", pool=config['pools']),
+        # biosamples=expand("/ebio/abt6_projects7/dliso/dlis/leon_pipeline/input/meta/biosamp_{pool}.csv", pool=config['pools']),
+        hifi="/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/ccs/{pool}/{pool}.hifi.bam",
+        biosamples="/ebio/abt6_projects7/dliso/dlis/leon_pipeline/input/meta/biosamp_{pool}.csv",
+        barcodes="/ebio/abt6_projects7/dliso/dlis/leon_pipeline/input/meta/pb16_barcodes_uniprimers.fasta"
+    output:
+        directory("/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/lima/{pool}/")
+    log:
+        "log/lima/{pool}.lima.log"
+    params:
+        pattern="/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/lima/{pool}/{pool}.demux.hifi.bam"
+    threads: 16
+    shell:
+        "mkdir -p {output} && lima --isoseq --peek-guess --min-length 100 --num-threads {threads} --log-level INFO --log-file {log} --store-unbarcoded --split-bam-named --biosample-csv {input.biosamples} {input.hifi} {input.barcodes} {params.pattern}"
+        # I did not use this one, since --hifi-preset uses -ccs in this flag, which is incompatible with --isoseq
+        # "mkdir -p {output} && lima --hifi-preset SYMMETRIC-ADAPTERS --min-length 100 --num-threads {threads} --log-level INFO --log-file {log} --store-unbarcoded --split-bam-named --biosample-csv {input.biosamples} {input.hifi} {input.barcodes} {params.pattern}"

@@ -1,0 +1,63 @@
+configfile: "config_template.yaml"
+workdir : config["workdir"]
+
+
+rule all:
+    input:
+        # expand("input/annotations/{tool}/{sample}.{tool}-v2.3.gtf", sample=config["samples2comp"], tool=["liftoff","augustus"]),
+        expand("input/annotations/augustus/{sample}.augustus-v2.3.gff3", sample=config["samples2update"]),
+        expand("input/annotations/liftoff/{sample}.liftoff-v2.3.gff3", sample=config["samples2update"]),
+        expand("/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/v2/collapse_{run}/{sample}_transdecoder/{sample}_transcripts.fasta.transdecoder.genome.sorted.protein.fasta", sample=config["samples2update"], run=["tama","pb"])
+
+rule gff2gtf:
+    """
+    Note that atXXXX was handeled manually, since we corrected an inverted scaffold
+    """
+    input:
+        "/ebio/abt6_projects7/diffLines_20/annex/assembly-and-annotation/output/02_annotation/01_original-annotation-merged/{sample}.augustus-v2.3.gff3"
+    output:
+        "input/annotations/augustus/{sample}.augustus-v2.3.gtf"
+    shell:
+        "gffread -T -o {output} {input}"
+
+rule kevin2gtf:
+    input:
+        "/ebio/abt6_projects7/diffLines_20/annex/gffuuuu/input/{sample}.liftoff.protonly.gff"
+    output:
+        "input/annotations/liftoff/{sample}.liftoff-v2.3.gtf"
+    shell:
+        "gffread -T -o {output} {input}"
+
+rule gtf2gff_augustus:
+    input:
+        "input/annotations/augustus/{sample}.augustus-v2.3.gtf"
+    output:
+        "input/annotations/augustus/{sample}.augustus-v2.3.gff3"
+    shell:
+        "perl ~/software/PASApipeline/misc_utilities/gtf_to_gff3_format.pl {input} > {output}"
+
+rule gtf2gff_liftoff:
+    input:
+        "input/annotations/liftoff/{sample}.liftoff-v2.3.gtf"
+    output:
+        "input/annotations/liftoff/{sample}.liftoff-v2.3.gff3"
+    shell:
+        "perl ~/software/PASApipeline/misc_utilities/gtf_to_gff3_format.pl {input} > {output}"
+
+rule fold:
+    input:
+        "input/refs/{sample}.scaffolds-v2.3.fasta"
+    output:
+        temp("input/refs/{sample}.scaffolds-v2.3.folded.fasta")
+    shell:
+        "fold {input} > {output}"
+
+
+rule trans_prot:
+    input:
+        genome="input/refs/{sample}.scaffolds-v2.3.folded.fasta",
+        gff="output/v2/collapse_{run}/{sample}_transdecoder/{sample}_transcripts.fasta.transdecoder.genome.sorted.gff3"
+    output:
+        "/ebio/abt6_projects7/dliso/dlis/leon_pipeline/output/v2/collapse_{run}/{sample}_transdecoder/{sample}_transcripts.fasta.transdecoder.genome.sorted.protein.fasta"
+    shell:
+        "agat_sp_extract_sequences.pl -g {input.gff} -f {input.genome} -p -o {output}"

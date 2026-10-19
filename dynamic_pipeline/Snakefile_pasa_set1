@@ -1,0 +1,110 @@
+configfile: "config_template.yaml"
+
+workdir : config["workdir"]
+
+# general parameters:
+v = config["version"]
+
+
+rename_in = []
+rename_out = []
+refine_out = []
+rename_rg_out = []
+concat_out = []
+cluster_out = []
+
+
+for idx, pool in enumerate(config['pools']):
+    for bc, sample in zip(config['name2bc'][idx].values(), config['name2bc'][idx].keys()):
+        rename_in.append(f"{pool}/{pool}.demux.hifi.{bc}.bam")
+        rename_out.append(f"{pool}/{pool}.demux.hifi.{sample}.bam")
+        refine_out.append(f"{pool}/{pool}.{sample}.ncfl.bam")
+        rename_rg_out.append(f"{pool}/{pool}.{sample}.ncfl.bam")
+        concat_out.append(f"{sample}.ncfl.fastq")
+        cluster_out.append(f"{sample}.transcripts.bam")
+
+rule all:
+    input:
+        # ccs_lima.smk
+        expand("output/ccs/{pattern}/{pattern}.hifi.bam", pattern=config["pools"]),
+        expand(directory("output/lima/{pool}"), pool=config["pools"]),
+        # rename.smk
+        expand("output/lima/{pattern}", pattern=rename_out),
+        # refine.smk
+        expand("output/refine/{pattern}", pattern=refine_out),
+        # combine.smk
+        expand("output/rename_rg/{pattern}", pattern=rename_rg_out),
+        expand("output/concat_samples/{pattern}", pattern=concat_out),
+        # mapping.smk
+        expand("output/concat_samples/{sample}.ncfl.no_dups.fastq", sample=config['sample2pools']),
+        # expand("output/cluster/{pattern}", pattern=cluster_out),
+        expand("output/mapping_minimap/{sample}.mapped.bam.bai", sample=config["samples2map"]),
+        ### collapsing.smk
+        # expand("output/{v}/collapse_pb/{sample}.collapsed.pb.{v}.gff", sample=config["samples2map"], v=v),
+        expand("output/{v}/collapse_stringtie/{sample}.collapsed.stringtie.{v}.gff", sample=config["samples2map"], v=v),
+        expand("output/{v}/collapse_tama/{sample}.collapsed.tama.{v}.bed", sample=config["samples2map"], v=v),
+        expand("output/{v}/collapse_tama/{sample}.collapsed.tama.{v}.gff3", sample=config["samples2map"], v=v),
+        expand("output/{v}/collapse_tama/{sample}.collapsed.tama.{v}_read_support.txt", sample=config["samples2map"], v=v),
+        ### sqanti.smk
+        # expand("output/{v}/collapse_{run}/{sample}_{tool}_sqanti/", sample=config["samples2comp"], v=v, run=["pb", "tama"], tool=["liftoff","augustus"]),
+        # expand("output/{v}/squanti_pb-vs-tama/{sample}/", sample=config["samples2comp"], v=v),
+        # expand("output/{v}/squanti_tama-vs-pb/{sample}/", sample=config["samples2comp"], v=v),
+        ### pasa.smk
+        # expand("output/{v}/collapse_{run}/{sample}_{tool}_pasa/compare1.done", sample=config["samples2update"], v=v, run=["pb", "tama"], tool=["liftoff", "augustus"])
+        # expand("output/{v}/collapse_{run}/{sample}_{tool}_pasa_{params}/compare1.done", sample=config["samples2update"], v=v, run=["tama"], params=config['pasa_settings'], tool=["liftoff", "augustus"]),
+        expand("output/{v}/collapse_{run}/{sample}_transdecoder/{sample}_transcripts.fasta.transdecoder.genome.gff3", sample=config["samples2update"], v=v, run=["tama", "pb"]),
+        expand("output/{v}/collapse_{run}/{sample}_transdecoder/{sample}_transcripts.fasta.transdecoder.genome.sorted.gff3", sample=config["samples2update"], v=v, run=["tama", "pb"])
+
+
+
+
+# include: "../rules/common.smk"
+
+#include: "../rules/ccs_lima.smk"
+
+# rename
+#incude: "../rules/rename.smk"
+
+# refine
+#include: "../rules/refine.smk"
+
+# combine different runs
+#include: "../rules/combine.smk"
+
+# cluster
+# incude: "../rules/cluster.smk"
+
+# mapping
+#include: "../rules/mapping.smk"
+
+# collapse
+#include: "../rules/collapse.smk"
+
+# sqanti
+# include: "../rules/sqanti.smk"
+
+# pasa
+include: "../rules/pasa.smk"
+
+# transdecoder
+#include: "../rules/transdecoder.smk"
+
+# stats
+# rule stats:
+#     input:
+#         ccs=expand("output/ccs/{pool}/{pool}.report.txt", pool=config['pools']),
+#         lima=expand("output/lima/{pool}/{pool}.demux.hifi.lima.summary", pool=config['pools']),
+#         refine=expand("output/{pool}/{pool}.{sample}.ncfl.filter_summary.report.json",pool=config["pools"],sample=config['pool2samples'][pool]),
+#         pbmm2=expand("output/mapping_pb/{sample}.mapped.bam", sample=config['samples2map']),
+#         mini=expand("output/mapping_minimap/{sample}.mapped.bam", sample=config['samples2map'])
+#     output:
+#         "output/stats/{pool}_{sample}.check"
+#         #"output/stats/check"
+#     log:
+#         "log/stats/{pool}_{sample}.log"
+#     params:
+#         out="output/stats/"
+#     shell:
+#         "touch {output} && python3 ../scripts/stats.py -c {input.ccs} -l {input.lima} -r {input.refine} -p {input.pbmm2} -m {input.mini} -o {params.out}"
+
+

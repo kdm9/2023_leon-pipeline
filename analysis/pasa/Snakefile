@@ -1,0 +1,44 @@
+samples2comp=['at6923','at6929','at7143','at8285','at9104','at9336','at9503','at9578','at9744','at9762','at9806','at9830','at9847','at9852','at9879','at9883','at9900','col0']
+
+rule all:
+    input:
+        expand("output/{tool}/{sample}/", sample=samples2comp, tool=["liftoff","augustus"])
+
+rule gff2gtf:
+    input:
+        "input/{tool}/{sample}_mydb_pasa.gene_structures_post_PASA_updates.gff3"
+    output:
+        "input/{tool}/{sample}_mydb_pasa.gene_structures_post_PASA_updates.gtf"
+    log:
+        "log/{tool}/{sample}_gff2gtf.log"
+    shell:
+        "gffread -T -o {output} {input}"
+
+rule squanti_ref:
+    input:
+        annotation="../../input/annotations/liftoff/{sample}.liftoff-v2.3.gtf",
+        genome="../../input/refs/{sample}.scaffolds-v2.3.fasta",
+        pasa="input/liftoff/{sample}_mydb_pasa.gene_structures_post_PASA_updates.gtf"
+    output:
+        directory("output/liftoff/{sample}/")
+    params:
+        prefix="{sample}-liftoff_updated_tama-vs-liftoff"
+    log:
+        "log/liftoff/{sample}_sqanti.log"
+    shell:
+        "export PYTHONPATH=\$PYTHONPATH:/ebio/abt6/lvaness/software/cDNA_Cupcake/sequence && mkdir -p {output} && python3 /ebio/abt6/lvaness/software/SQANTI3-5.1/sqanti3_qc.py --report pdf -o {params.prefix} --d {output} {input.pasa} {input.annotation} {input.genome} > {log}"
+
+rule squanti_ref_aug:
+    input:
+        annotation="../../input/annotations/augustus/{sample}.augustus-v2.3.gtf",
+        genome="../../input/refs/{sample}.scaffolds-v2.3.fasta",
+        pasa="input/augustus/{sample}_mydb_pasa.gene_structures_post_PASA_updates.gtf"
+    output:
+        directory("output/augustus/{sample}/")
+    params:
+        prefix="{sample}-augustus_updated_tama-vs-augustus"
+    log:
+        "log/augustus/{sample}_sqanti.log"
+    shell:
+        "export PYTHONPATH=\$PYTHONPATH:/ebio/abt6/lvaness/software/cDNA_Cupcake/sequence && mkdir -p {output} && python3 /ebio/abt6/lvaness/software/SQANTI3-5.1/sqanti3_qc.py -o {params.prefix} --report skip --d {output} {input.pasa} {input.annotation} {input.genome} > {log}"
+

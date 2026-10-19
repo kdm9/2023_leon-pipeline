@@ -1,0 +1,20 @@
+samples=['at6923', 'at6929', 'at7143', 'at8285', 'at9104', 'at9336',
+       'at9503', 'at9578', 'at9744', 'at9762', 'at9806', 'at9830',
+       'at9847', 'at9852', 'at9879', 'at9883', 'at9900', 'col0']
+run=["","_cat","_no_co"]
+analyses = ["n5_genes"]
+
+rule all:
+    input:
+        expand(directory("output/{analysis}/{sample}{ext}"), sample=samples, analysis=analyses, ext=run)
+
+rule interproscan:
+    input:
+        fasta="input/{analysis}/{sample}_nlr_like.prot.fasta"
+    output:
+        directory("output/{analysis}/{sample}")
+    shell:
+        "mkdir -p {output} &&"
+        "interpro/interproscan-5.61-93.0/interproscan.sh -i {input.fasta} -d {output} --goterms -appl ProSitePatterns, Pfam, TIGRFAM, PIRSR"
+
+# ProSitePatterns, Pfam, TIGRFAM, PIRSR

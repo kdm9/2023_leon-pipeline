@@ -1,0 +1,67 @@
+#### general setup ####
+### paths
+
+pools : ['pool1','pool2','pool3','pool4']
+
+### mappings
+# demultiplexing
+sample2pools : {'at6923':['pool1','pool4'],
+                'at6929':['pool1','pool4'],
+                'at7143':['pool1','pool4'],
+                'at8285':['pool1','pool4'],
+                'at9104':['pool1','pool4'],
+                'at9336':['pool1','pool4'],
+                'at9503':['pool1','pool4'],
+                'at9578':['pool1','pool4'],
+                'at9744':['pool2','pool4'],
+                'at9762':['pool2'],
+                'at9806':['pool2'],
+                'at9830':['pool2'],
+                'at9847':['pool2','pool4'],
+                'at9852':['pool2'],
+                'at9879':['pool2'],
+                'at9883':['pool2'],
+                'at9900':['pool3'],
+                'col0':['pool3'],
+                'Ha166-4':['pool3'],
+                'Ha495-1':['pool3'], 
+                'Ha527-3':['pool3'],
+                'Ha527-3_sp':['pool3']}
+
+# renaming
+name2bc : [{'at6923':'bc1001_5p--bc1001_3p',
+            'at6929':'bc1002_5p--bc1002_3p',
+            'at7143':'bc1003_5p--bc1003_3p',
+            'at8285':'bc1008_5p--bc1008_3p',
+            'at9104':'bc1009_5p--bc1009_3p',
+            'at9336':'bc1010_5p--bc1010_3p',
+            'at9503':'bc1011_5p--bc1011_3p',
+            'at9578':'bc1012_5p--bc1012_3p'},
+            {'at9744':'bc1015_5p--bc1015_3p',
+            'at9762':'bc1016_5p--bc1016_3p',
+            'at9806':'bc1017_5p--bc1017_3p',
+            'at9830':'bc1018_5p--bc1018_3p',
+            'at9847':'bc1019_5p--bc1019_3p',
+            'at9852':'bc1020_5p--bc1020_3p',
+            'at9879':'bc1021_5p--bc1021_3p',
+            'at9883':'bc1022_5p--bc1022_3p'},
+            {'at9900':'bc1001_5p--bc1001_3p',
+            'col0':'bc1002_5p--bc1002_3p',
+            'Ha166-4':'bc1003_5p--bc1003_3p',
+            'Ha495-1':'bc1008_5p--bc1008_3p',
+            'Ha527-3':'bc1009_5p--bc1009_3p',
+            'Ha527-3_sp':'bc1010_5p--bc1010_3p'},
+            {'at6923':'bc1001_5p--bc1001_3p',
+            'at6929':'bc1002_5p--bc1002_3p',
+            'at7143':'bc1003_5p--bc1003_3p',
+            'at8285':'bc1008_5p--bc1008_3p',
+            'at9104':'bc1009_5p--bc1009_3p',
+            'at9336':'bc1010_5p--bc1010_3p',
+            'at9503':'bc1011_5p--bc1011_3p',
+            'at9578':'bc1012_5p--bc1012_3p',
+            'at9744':'bc1015_5p--bc1015_3p',
+            'at9847':'bc1019_5p--bc1019_3p'}]
+
+# (sub)set of samples to map and collapse
+samples2map: ['at6923','at6929','at7143','at8285','at9104','at9336','at9503','at9578','at9744','at9762','at9806','at9830','at9847','at9852','at9879','at9883','at9900','col0']
+
